@@ -1,12 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import BottomNav from "@/components/layout/BottomNav";
 import TopNav from "@/components/layout/TopNav";
 import Button from "@/components/ui/Button";
-import StarRating from "@/components/ui/StarRating";
 import SizeSelector from "@/components/ui/SizeSelector";
 import QuantityStepper from "@/components/ui/QuantityStepper";
 import { FoodItem, SizeOption } from "@/types";
@@ -15,158 +13,155 @@ interface ProductDetailScreenProps {
   food: FoodItem;
 }
 
+function RatingMeta({ rating, reviewCount }: { rating: number; reviewCount: number }) {
+  return (
+    <div className="flex items-center gap-[6px]">
+      <svg width="12" height="12" viewBox="0 0 20 20" fill="#e85b52" aria-hidden="true">
+        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.966a1 1 0 00.95.69h4.17c.969 0 1.372 1.24.588 1.81l-3.374 2.452a1 1 0 00-.364 1.118l1.287 3.966c.3.922-.755 1.688-1.54 1.118L10 15.347l-3.374 2.45c-.784.57-1.838-.196-1.539-1.118l1.287-3.966a1 1 0 00-.364-1.118L2.636 9.393c-.783-.57-.38-1.81.588-1.81h4.17a1 1 0 00.95-.69L9.049 2.927z" />
+      </svg>
+      <span className="text-[#898585] font-bold text-[14px]">
+        {rating.toFixed(1)} ({reviewCount} review)
+      </span>
+    </div>
+  );
+}
+
+function truncateText(text: string, max: number) {
+  if (text.length <= max) return text;
+  return text.slice(0, max).trimEnd();
+}
+
 export default function ProductDetailScreen({ food }: ProductDetailScreenProps) {
   const router = useRouter();
-  const [size, setSize]         = useState<SizeOption>("Small");
-  const [qty, setQty]           = useState(1);
-  const [hearted, setHearted]   = useState(false);
+  const [size, setSize] = useState<SizeOption>("Small");
+  const [qty, setQty] = useState(1);
+  const [hearted, setHearted] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
   const screenTitle =
-    food.category === "Biryani"  ? "Biriyani Bliss"  :
-    food.category === "Pizza"    ? "Pizza Bliss"      :
-    food.category === "Burger"   ? "Burger Bliss"     :
-    food.category === "Sandwich" ? "Sandwhic Bliss"   :
-    food.category;
+    food.category === "Biryani"
+      ? "Biriyani Bliss"
+      : food.category === "Pizza"
+        ? "Pizza Bliss"
+        : food.category === "Burger"
+          ? "Burger Bliss"
+          : food.category === "Sandwich"
+            ? "Sandwich Bliss"
+            : food.category;
 
-  const specItems = [
-    { label: "Price",    labelColor: "#898585", value: `$ ${food.price.toFixed(2)}`,       valueSize: "text-[24px]" },
-    { label: "Calories", labelColor: "#7a7878", value: `${food.calories} Cal`,              valueSize: "text-[22px]" },
-    { label: "Diameter", labelColor: "#7d7b7b", value: `${food.diameterCm.toFixed(2)} Cm`, valueSize: "text-[22px]" },
-  ];
+  const specs = useMemo(
+    () => [
+      { label: "Price", value: `$ ${food.price.toFixed(2)}`, valueClass: "text-[24px]" },
+      { label: "Calories", value: `${food.calories} Cal`, valueClass: "text-[22px]" },
+      { label: "Diameter", value: `${food.diameterCm.toFixed(2)} Cm`, valueClass: "text-[22px]" },
+    ],
+    [food]
+  );
+
+  const description = expanded ? food.description : `${truncateText(food.description, 150)}...`;
 
   return (
     <div
-      className="relative flex flex-col"
+      className="relative w-full h-dvh overflow-hidden"
       style={{
-        minHeight: "100svh",
         background:
           "radial-gradient(ellipse at top right, rgba(209,163,160,1) 0%, rgba(232,209,208,1) 32%, #ffffff 65%)",
       }}
     >
-      {/* ── Top nav ──────────────────────────────────────────── */}
-      <TopNav
-        title="Details"
-        onBack={() => router.back()}
-        hearted={hearted}
-        onHeart={() => setHearted(!hearted)}
-      />
+      <div className="h-full overflow-y-auto scrollbar-hide">
+        <div className="mx-auto w-full max-w-[1120px]">
+          <TopNav
+            title="Details"
+            onBack={() => router.back()}
+            hearted={hearted}
+            onHeart={() => setHearted((h) => !h)}
+          />
 
-      {/* ── Scrollable body ──────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto scrollbar-hide pb-[160px]">
-        <div className="max-w-5xl mx-auto px-6">
-
-          {/* Title + rating — above both columns */}
-          <div className="mt-2 mb-5">
+          <div className="px-[25px] pb-[calc(120px+env(safe-area-inset-bottom))]">
             <h1
-              className="font-semibold text-[clamp(26px,5vw,36px)] text-[rgba(0,0,0,0.97)]"
+              className="font-semibold text-[26px] text-[rgba(0,0,0,0.97)]"
               style={{ textShadow: "0px 4px 4px rgba(0,0,0,0.25)" }}
             >
               {screenTitle}
             </h1>
-            <div className="mt-1">
-              <StarRating rating={food.rating} reviewCount={food.reviewCount} />
-            </div>
-          </div>
 
-          <div className="md:grid md:grid-cols-2 md:gap-12 md:items-start">
-
-            {/* ── LEFT column: specs + controls ──────────────── */}
-            <div className="space-y-5 order-2 md:order-1">
-
-              {/*
-               * Spec items:
-               * Mobile — stacked list (matches Figma exactly).
-               * Desktop — horizontal cards for better visual grouping.
-               */}
-              <div className="flex flex-col gap-4 md:flex-row md:gap-3">
-                {specItems.map(({ label, labelColor, value, valueSize }) => (
-                  <div
-                    key={label}
-                    className="md:flex-1 md:bg-white/60 md:backdrop-blur-sm md:rounded-2xl md:p-4 md:text-center md:shadow-sm"
-                  >
-                    <p className="font-bold text-[20px] md:text-[14px]" style={{ color: labelColor }}>
-                      {label}
-                    </p>
-                    <p className={`font-bold ${valueSize} text-[#262525]`}>{value}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Quantity stepper */}
-              <QuantityStepper
-                value={qty}
-                onIncrement={() => setQty((q) => q + 1)}
-                onDecrement={() => setQty((q) => Math.max(1, q - 1))}
-              />
-
-              {/* Size selector */}
-              <div>
-                <p className="font-bold text-[20px] text-[#7d7b7b] mb-3">Size</p>
-                <SizeSelector selected={size} onChange={setSize} />
-              </div>
-
-              {/* Description */}
-              <p className="font-medium text-[18px] text-black leading-relaxed">
-                {expanded ? food.description : food.description.slice(0, 140) + "..."}
-                <button
-                  className="font-extrabold ml-1 text-[#e85b52]"
-                  onClick={() => setExpanded(!expanded)}
-                >
-                  {expanded ? "less_" : "more_"}
-                </button>
-              </p>
-
-              {/* Add to Cart — in-flow on desktop */}
-              <div className="hidden md:block pt-2">
-                <Button onClick={() => router.push("/cart")}>Add to Cart</Button>
-              </div>
+            <div className="mt-[6px]">
+              <RatingMeta rating={food.rating} reviewCount={food.reviewCount} />
             </div>
 
-            {/* ── RIGHT column: hero image ──────────────────── */}
-            <div className="order-1 md:order-2 relative flex justify-center md:justify-end">
+            {/* Two-column layout on mobile; optimized left column on desktop */}
+            <div className="mt-[18px] grid grid-cols-[154px_1fr] gap-x-[14px] items-start md:grid-cols-[240px_1fr] md:gap-x-[28px]">
+              {/* Specs + quantity */}
+              <div className="col-start-1 row-start-1">
+                <div className="space-y-[14px]">
+                  {specs.map((spec) => (
+                    <div key={spec.label}>
+                      <p className="font-bold text-[14px] text-[#898585]">{spec.label}</p>
+                      <p className={`font-bold ${spec.valueClass} text-[#262525] leading-none`}>
+                        {spec.value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
 
-              {/* Mobile: overflows right like Figma */}
-              <div className="md:hidden relative h-[320px] w-full overflow-visible">
-                <div className="absolute right-[-24px] top-0 w-[370px] max-w-[88vw] h-[340px]">
-                  <Image
-                    src={food.image}
-                    alt={food.name}
-                    fill
-                    className="object-contain"
-                    unoptimized
-                    priority
+                <div className="mt-[18px]">
+                  <QuantityStepper
+                    value={qty}
+                    onIncrement={() => setQty((q) => q + 1)}
+                    onDecrement={() => setQty((q) => Math.max(1, q - 1))}
                   />
                 </div>
               </div>
 
-              {/* Desktop: centered large image with generous height */}
-              <div className="hidden md:block relative w-full h-[460px] md:sticky md:top-4">
-                <Image
-                  src={food.image}
-                  alt={food.name}
-                  fill
-                  className="object-contain drop-shadow-2xl"
-                  unoptimized
-                  priority
-                />
+              {/* Hero image */}
+              <div className="col-start-2 row-start-1 relative min-w-0">
+                <div className="relative h-[260px] md:h-[440px] overflow-visible">
+                  <div className="absolute right-[-24px] top-[-10px] w-[330px] max-w-[78vw] h-[300px] md:right-[-10px] md:top-[-18px] md:w-[560px] md:h-[500px]">
+                    <Image
+                      src={food.image}
+                      alt={food.name}
+                      fill
+                      priority
+                      unoptimized
+                      className="object-contain drop-shadow-2xl"
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
 
+              {/* Size (full width on mobile, left column on desktop) */}
+              <div className="col-span-2 row-start-2 mt-[6px] md:col-span-1 md:col-start-1">
+                <p className="font-bold text-[16px] text-[#7d7b7b] mb-[10px]">Size</p>
+                <SizeSelector selected={size} onChange={setSize} />
+              </div>
+
+              {/* Description (full width on mobile, left column on desktop) */}
+              <p className="col-span-2 row-start-3 mt-[16px] font-medium text-[13px] leading-[19px] text-black md:col-span-1 md:col-start-1">
+                {description}
+                <button
+                  type="button"
+                  className="font-extrabold ml-1 text-black"
+                  onClick={() => setExpanded((e) => !e)}
+                >
+                  {expanded ? "less_" : "more_"}
+                </button>
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ── Add to Cart sticky button — mobile only ──────────── */}
-      <div
-        className="md:hidden fixed left-0 right-0 z-40 px-6 py-4 bg-white/80 backdrop-blur-md border-t border-[#f0e0e0]"
-        style={{ bottom: "80px" }}
-      >
-        <Button onClick={() => router.push("/cart")}>Add to Cart</Button>
+      {/* Add to Cart bar (mobile + desktop) */}
+      <div className="fixed left-0 right-0 bottom-0 z-40 bg-white/80 backdrop-blur-md border-t border-[#f0e0e0]">
+        <div className="mx-auto w-full max-w-[1120px] px-[25px] pt-[14px] pb-[calc(env(safe-area-inset-bottom)+16px)]">
+          <Button
+            onClick={() => router.push("/cart")}
+            className="h-[56px] rounded-[28px] text-[20px]"
+          >
+            Add to Cart
+          </Button>
+        </div>
       </div>
-
-      {/* ── Fixed bottom nav ─────────────────────────────────── */}
-      <BottomNav />
     </div>
   );
 }
